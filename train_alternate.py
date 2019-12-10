@@ -141,7 +141,7 @@ def create_losses(net, label, cfg, isLane = False):
         if isLane:
             # lane
             pred_lane = net.layers['lane/conv6_cls']
-            loss_cls = 0.1 * create_loss(pred_lane, label, 2, cfg.param['ignore_label'], cfg.USE_WEIGHT)
+            loss_cls = 0.3 * create_loss(pred_lane, label, 2, cfg.param['ignore_label'], cfg.USE_WEIGHT)
         else:
             # Get output from the output layer
             pred = net.layers['conv6_cls']
