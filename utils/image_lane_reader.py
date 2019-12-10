@@ -11,9 +11,9 @@ def read_labeled_image_list(data_dir, data_list):
     lanes = []
     for line in f:
         try:
-            image, mask, lane = line[:].split(' ')
+            image, lane = line[:].split(' ')
         except ValueError: # Adhoc for test.
-            image = mask = lane = line.strip("\n")
+            image = lane = line.strip("\n")
 
         image = os.path.join(data_dir, image)
         lane = os.path.join(data_dir, lane)
@@ -101,8 +101,8 @@ def _random_crop_and_pad_image_and_labels(image, lane, crop_h, crop_w, ignore_la
     last_image_dim = tf.shape(image)[-1]
     last_lane_dim = tf.shape(lane)[-1]
 
-    # 3 + 1 + 1
-    combined_crop = tf.random_crop(combined_pad, [crop_h, crop_w, 5])
+    # 3 + 1
+    combined_crop = tf.random_crop(combined_pad, [crop_h, crop_w, 4])
     img_crop = combined_crop[:, :, :last_image_dim]
     
     lane_crop = combined_crop[:, :, last_image_dim:]
@@ -161,7 +161,7 @@ class ImageReader(object):
 
     def __init__(self, cfg, img_path=None, mode='eval'):
         if mode == 'train' or mode == 'eval':
-            self.image_list, self.lane_list = read_labeled_image_list(cfg.param['data_dir'], cfg.param[mode+'_list'])
+            self.image_list, self.lane_list = read_labeled_image_list(cfg.param['data_dir'], cfg.param[mode+'_list'].replace('freetech', 'freetech_pure_lane'))
             print(cfg.param[mode+'_list'])
             self.dataset = self.create_tf_dataset(cfg)
 
