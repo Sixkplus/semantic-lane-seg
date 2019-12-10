@@ -8,6 +8,7 @@ def read_labeled_image_list(data_dir, data_list):
     f = open(data_list, 'r')
     
     images = []
+    masks = []
     lanes = []
     for line in f:
         try:
@@ -16,19 +17,24 @@ def read_labeled_image_list(data_dir, data_list):
             image = mask = lane = line.strip("\n")
 
         image = os.path.join(data_dir, image)
+        mask = os.path.join(data_dir, mask)
         lane = os.path.join(data_dir, lane)
         lane = lane.strip()
         
         if not tf.gfile.Exists(image):
             raise ValueError('Failed to find file: ' + image)
+
+        if not tf.gfile.Exists(mask):
+            raise ValueError('Failed to find file: ' + mask)
         
         if not tf.gfile.Exists(lane):
             raise ValueError('Failed to find file: ' + lane)
 
         images.append(image)
+        masks.append(mask)
         lanes.append(lane)
 
-    return images, lanes
+    return images, masks, lanes
 
 def prepare_label(input_batch, new_size, num_classes, one_hot=True):
     with tf.name_scope('label_encode'):
@@ -52,44 +58,50 @@ def _extract_mean(img, img_mean, swap_channel=False):
     
     return img
 
-def _parse_function(image_filename, lane_filename, img_mean):
+def _parse_function(image_filename, label_filename, lane_filename, img_mean):
     img_contents = tf.read_file(image_filename)
+    label_contents = tf.read_file(label_filename)
     lane_contents = tf.read_file(lane_filename)
        
     # Decode image & label
     img = tf.image.decode_jpeg(img_contents, channels=3)
+    label = tf.image.decode_png(label_contents, channels=1)
     lane = tf.image.decode_png(lane_contents, channels=1)
     
     # swap channel and extract mean
     img = _extract_mean(img, img_mean, swap_channel=True)
 
-    return img, lane
+    return img, label, lane
 
-def _image_mirroring(img, lane):
+def _image_mirroring(img, label, lane):
     distort_left_right_random = tf.random_uniform([1], 0, 1.0, dtype=tf.float32)[0]
     mirror = tf.less(tf.stack([1.0, distort_left_right_random, 1.0]), 0.5)
     mirror = tf.boolean_mask([0, 1, 2], mirror)
     img = tf.reverse(img, mirror)
+    label = tf.reverse(label, mirror)
     lane = tf.reverse(lane, mirror)
 
-    return img, lane
+    return img, label, lane
 
-def _image_scaling(img, lane):
+def _image_scaling(img, label, lane):
     scale = tf.random_uniform([1], minval=0.5, maxval=2.0, dtype=tf.float32, seed=None)
     h_new = tf.to_int32(tf.multiply(tf.to_float(tf.shape(img)[0]), scale))
     w_new = tf.to_int32(tf.multiply(tf.to_float(tf.shape(img)[1]), scale))
     new_shape = tf.squeeze(tf.stack([h_new, w_new]), axis=[1])
     img = tf.image.resize_images(img, new_shape)
+    label = tf.image.resize_nearest_neighbor(tf.expand_dims(label, 0), new_shape)
+    label = tf.squeeze(label, axis=[0])
 
     lane = tf.image.resize_nearest_neighbor(tf.expand_dims(lane, 0), new_shape)
     lane = tf.squeeze(lane, axis=[0])
 
-    return img, lane
+    return img, label, lane
 
-def _random_crop_and_pad_image_and_labels(image, lane, crop_h, crop_w, ignore_label):
+def _random_crop_and_pad_image_and_labels(image, label, lane, crop_h, crop_w, ignore_label):
+    label = tf.cast(label, dtype=tf.float32)
     lane = tf.cast(lane, dtype=tf.float32)
     #label = label - ignore_label # Needs to be subtracted and later added due to 0 padding.
-    combined = tf.concat(axis=2, values=[image, lane])
+    combined = tf.concat(axis=2, values=[image, label, lane])
     image_shape = tf.shape(image)
     combined_pad = tf.image.pad_to_bounding_box(
                             combined,
@@ -99,20 +111,25 @@ def _random_crop_and_pad_image_and_labels(image, lane, crop_h, crop_w, ignore_la
                             tf.maximum(crop_w, image_shape[1]))
 
     last_image_dim = tf.shape(image)[-1]
+    last_label_dim = tf.shape(label)[-1]
     last_lane_dim = tf.shape(lane)[-1]
 
     # 3 + 1 + 1
     combined_crop = tf.random_crop(combined_pad, [crop_h, crop_w, 5])
     img_crop = combined_crop[:, :, :last_image_dim]
     
-    lane_crop = combined_crop[:, :, last_image_dim:]
+    label_crop = combined_crop[:, :, last_image_dim:last_image_dim+last_label_dim]
+    label_crop = tf.cast(label_crop, dtype=tf.int64)
+    
+    lane_crop = combined_crop[:, :, last_image_dim+last_label_dim:]
     lane_crop = tf.cast(lane_crop, dtype=tf.int64)
 
     # Set static shape so that tensorflow knows shape at compile time.
     img_crop.set_shape((crop_h, crop_w, 3))
+    label_crop.set_shape((crop_h, crop_w, 1))
     lane_crop.set_shape((crop_h, crop_w, 1))
 
-    return img_crop, lane_crop
+    return img_crop, label_crop, lane_crop
 
 def _check_input(img):
     ori_h, ori_w = img.get_shape().as_list()[1:3]
@@ -141,17 +158,21 @@ def _infer_preprocess(img, img_mean, swap_channel=False):
         
     return img, o_shape, n_shape
 
-def _eval_preprocess(img, lane, shape, dataset):
+def _eval_preprocess(img, label, lane, shape, dataset):
     if dataset == 'cityscapes':
         img = tf.image.pad_to_bounding_box(img, 0, 0, shape[0], shape[1])
         img.set_shape([shape[0], shape[1], 3])
     else:
         img = tf.image.resize_images(img, shape, align_corners=True)
 
+    label = tf.image.resize_nearest_neighbor(tf.expand_dims(label, 0), [shape[0], shape[1]])
+    label = tf.squeeze(label, axis=[0])
+
     lane = tf.image.resize_nearest_neighbor(tf.expand_dims(lane, 0), [shape[0], shape[1]])
     lane = tf.squeeze(lane, axis=[0])
+    #label = tf.image.resize_nearest_neighbor(label, [shape[0]-1, shape[1]-1])
      
-    return img, lane
+    return img, label, lane
 
 class ImageReader(object):
     '''
@@ -161,16 +182,16 @@ class ImageReader(object):
 
     def __init__(self, cfg, img_path=None, mode='eval'):
         if mode == 'train' or mode == 'eval':
-            self.image_list, self.lane_list = read_labeled_image_list(cfg.param['data_dir'], cfg.param[mode+'_list'])
+            self.image_list, self.label_list, self.lane_list = read_labeled_image_list(cfg.param['data_dir'], cfg.param[mode+'_list'])
             print(cfg.param[mode+'_list'])
             self.dataset = self.create_tf_dataset(cfg)
 
-            self.next_image, self.next_lane = self.dataset.make_one_shot_iterator().get_next() 
+            self.next_image, self.next_label, self.next_lane = self.dataset.make_one_shot_iterator().get_next() 
     
     def create_tf_dataset(self, cfg):
-        dataset = tf.data.Dataset.from_tensor_slices((self.image_list, self.lane_list))
+        dataset = tf.data.Dataset.from_tensor_slices((self.image_list, self.label_list, self.lane_list))
         dataset = dataset.shuffle(buffer_size=512)
-        dataset = dataset.map(lambda x, z: _parse_function(x, z, cfg.IMG_MEAN), num_parallel_calls=cfg.N_WORKERS)
+        dataset = dataset.map(lambda x, y, z: _parse_function(x, y, z, cfg.IMG_MEAN), num_parallel_calls=cfg.N_WORKERS)
 
         if cfg.is_training: # Training phase
             h, w = cfg.TRAINING_SIZE
@@ -180,8 +201,8 @@ class ImageReader(object):
             if cfg.random_mirror:
                 dataset = dataset.map(_image_mirroring, num_parallel_calls=cfg.N_WORKERS)
 
-            dataset = dataset.map(lambda x, z: 
-                                  _random_crop_and_pad_image_and_labels(x, z, h, w, cfg.param['ignore_label']), num_parallel_calls=cfg.N_WORKERS)
+            dataset = dataset.map(lambda x, y, z: 
+                                  _random_crop_and_pad_image_and_labels(x, y, z, h, w, cfg.param['ignore_label']), num_parallel_calls=cfg.N_WORKERS)
             dataset = dataset.repeat()
             dataset = dataset.batch(cfg.BATCH_SIZE)
 
@@ -189,8 +210,8 @@ class ImageReader(object):
             dataset = dataset.prefetch(buffer_size=2)
 
         else: # Evaluation phase            
-            dataset = dataset.map(lambda x, z: 
-                                  _eval_preprocess(x, z, cfg.param['eval_size'], cfg.dataset))
+            dataset = dataset.map(lambda x, y, z: 
+                                  _eval_preprocess(x, y, z, cfg.param['eval_size'], cfg.dataset))
             dataset = dataset.batch(1)
             dataset = dataset.prefetch(buffer_size=1)
                 

@@ -40,7 +40,6 @@ class InferenceConfig(Config):
     #model_weight = './useful_checkpoints/model.ckpt-28200'
 
     #model_weight = './snapshots/cityscapes/PSPNet18.ckpt-54200'
-    #model_weight = './snapshots/freetech_day/' + model_type + '_best.ckpt'
 
     #model_weight = './useful_checkpoints/' + model_type + '.ckpt-' + str(ckpt_step)
     model_weight = './snapshots/freetech_lane/' + model_type + '_best.ckpt'

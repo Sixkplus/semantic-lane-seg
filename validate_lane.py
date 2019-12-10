@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import trange
 
 from utils.config import Config
-from utils.image_lane_reader import ImageReader, read_labeled_image_list
+from utils.image_label_lane_reader import ImageReader, read_labeled_image_list
 from model_swift import Swift_mobile, freetech_mobile_050, freetech_mobile_050_lane
 from utils.visualize import decode_labels, decode_ids
 
@@ -17,7 +17,7 @@ def get_arguments():
     parser = argparse.ArgumentParser(description="Semantic Segmentation models Eval")
 
     parser.add_argument("--dataset", type=str, default='',
-                        choices=['ade20k', 'cityscapes', 'freetech_day', 'freetech_lane', 'agric'],
+                        choices=['ade20k', 'cityscapes', 'freetech', 'freetech_lane', 'agric'],
                         required=True)
     parser.add_argument("--filter-scale", type=int, default=1,
                         help="1 for using pruned model, while 2 for using non-pruned model.",

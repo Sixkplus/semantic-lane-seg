@@ -34,7 +34,7 @@ def get_arguments():
                         help="whether to train beta & gamma in bn layer")
     parser.add_argument("--dataset", required=True,
                         help="Which dataset to trained with",
-                        choices=['cityscapes', 'ade20k', 'freetech_day', 'freetech_night', 'freetech_special', 'agric', 'others'])
+                        choices=['cityscapes', 'ade20k', 'freetech', 'freetech_night', 'freetech_special', 'agric', 'others'])
     parser.add_argument("--filter-scale", type=int, default=1,
                         help="1 for using pruned model, while 2 for using non-pruned model.",
                         choices=[1, 2])

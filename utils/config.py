@@ -25,8 +25,8 @@ class Config(object):
 
     # Freetech
     FREETECH_DATA_DIR = './data/input/freetech'
-    freetech_day_train_list = os.path.join('./data/list/freetech_day_train_list.txt')
-    freetech_day_eval_list = os.path.join('./data/list/freetech_day_val_list.txt')
+    freetech_train_list = os.path.join('./data/list/freetech_train_list.txt')
+    freetech_eval_list = os.path.join('./data/list/freetech_val_list.txt')
 
     # Freetech lane
     FREETECH_LANE_DIR = './data/input/freetech'
@@ -67,13 +67,13 @@ class Config(object):
                     'train_list': CITYSCAPES_motion_train_list,
                     'data_dir': CITYSCAPES_DATA_DIR}
     
-    freetech_day_param = {'name': 'freetech_day',
+    freetech_param = {'name': 'freetech',
                     'num_classes': 6,
                     'ignore_label': 255,
                     'eval_size': [1256, 1928],
                     'eval_steps': 1200,
-                    'eval_list': freetech_day_eval_list,
-                    'train_list': freetech_day_train_list,
+                    'eval_list': freetech_eval_list,
+                    'train_list': freetech_train_list,
                     'data_dir': FREETECH_DATA_DIR}
     
     freetech_lane_param = {'name': 'freetech_lane',
@@ -150,8 +150,8 @@ class Config(object):
             self.param = self.cityscapes_param
         elif dataset == 'cityscapes_motion':
             self.param = self.cityscapes_motion_param
-        elif dataset == 'freetech_day':
-            self.param = self.freetech_day_param
+        elif dataset == 'freetech':
+            self.param = self.freetech_param
         elif dataset == 'freetech_lane':
             self.param = self.freetech_lane_param
         elif dataset == 'agric':

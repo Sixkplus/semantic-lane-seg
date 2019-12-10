@@ -16,8 +16,8 @@ model_config = {'Swift_mobile':Swift_mobile, 'freetech_mobile_050':freetech_mobi
 def get_arguments():
     parser = argparse.ArgumentParser(description="Semantic Segmentation models Eval")
 
-    parser.add_argument("--dataset", type=str, default='freetech_day',
-                        choices=['ade20k', 'cityscapes', 'freetech_day', 'agric'],
+    parser.add_argument("--dataset", type=str, default='freetech',
+                        choices=['ade20k', 'cityscapes', 'freetech', 'agric'],
                         required=True)
     parser.add_argument("--filter-scale", type=int, default=1,
                         help="1 for using pruned model, while 2 for using non-pruned model.",
@@ -40,7 +40,7 @@ class EvalConfig(Config):
 
     ckpt_step = 100
 
-    model_weight = './snapshots/freetech_day/' + model_type + '.ckpt-' + str(ckpt_step)
+    model_weight = './snapshots/freetech/' + model_type + '.ckpt-' + str(ckpt_step)
 
     #model_weight = './snapshots_restart/cityscapes/' + model_type + '.ckpt-' + str(ckpt_step)
 
@@ -52,7 +52,7 @@ class EvalConfig(Config):
 
 
 def eval(cfg):
-    img_names, _ = read_labeled_image_list(cfg.FREETECH_DATA_DIR, cfg.freetech_day_eval_list)
+    img_names, _ = read_labeled_image_list(cfg.FREETECH_DATA_DIR, cfg.freetech_eval_list)
     
     model = model_config[cfg.model_type]
     reader = ImageReader(cfg=cfg, mode='eval')
@@ -103,7 +103,7 @@ def main():
 
     while(True):
         while(ckpt_step < 160000):
-            cfg.model_weight = './snapshots/freetech_day/' + cfg.model_type + '.ckpt-' + str(ckpt_step) 
+            cfg.model_weight = './snapshots/freetech/' + cfg.model_type + '.ckpt-' + str(ckpt_step) 
             if os.path.exists(cfg.model_weight + '.meta'):
                 mIoU = eval(cfg)
                 if(mIoU > max_mIoU):

@@ -20,7 +20,7 @@ model_config = {'Swift_mobile':Swift_mobile, 'freetech_mobile_050':freetech_mobi
 
 
 
-dataset = 'freetech_day'
+dataset = 'freetech'
 filter_scale = 1
 
 data_dir = 'ft_val'
@@ -43,10 +43,9 @@ class InferenceConfig(Config):
     #model_weight = './useful_checkpoints/model.ckpt-28200'
 
     #model_weight = './snapshots/cityscapes/PSPNet18.ckpt-54200'
-    #model_weight = './snapshots/freetech_day/' + model_type + '_best.ckpt'
 
-    #model_weight = './useful_checkpoints/' + model_type + '.ckpt-' + str(ckpt_step)
-    model_weight = './snapshots/freetech_day/' + model_type + '_best.ckpt'
+    model_weight = './useful_checkpoints/' + model_type + '.ckpt-' + str(ckpt_step)
+    model_weight = './useful_checkpoints/' + model_type + '_best.ckpt'
     
     
     # Define default input size here
