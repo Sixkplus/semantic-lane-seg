@@ -88,7 +88,7 @@ def _image_scaling(img, lane):
 
 def _random_crop_and_pad_image_and_labels(image, lane, crop_h, crop_w, ignore_label):
     lane = tf.cast(lane, dtype=tf.float32)
-    #label = label - ignore_label # Needs to be subtracted and later added due to 0 padding.
+    lane = lane - ignore_label # Needs to be subtracted and later added due to 0 padding.
     combined = tf.concat(axis=2, values=[image, lane])
     image_shape = tf.shape(image)
     combined_pad = tf.image.pad_to_bounding_box(
@@ -106,6 +106,7 @@ def _random_crop_and_pad_image_and_labels(image, lane, crop_h, crop_w, ignore_la
     img_crop = combined_crop[:, :, :last_image_dim]
     
     lane_crop = combined_crop[:, :, last_image_dim:]
+    lane_crop = lane_crop + ignore_label
     lane_crop = tf.cast(lane_crop, dtype=tf.int64)
 
     # Set static shape so that tensorflow knows shape at compile time.
