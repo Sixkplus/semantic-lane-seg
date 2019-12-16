@@ -141,7 +141,7 @@ def create_losses(net, label, cfg, isLane = False):
         if isLane:
             # lane
             pred_lane = net.layers['lane/conv6_cls']
-            loss_cls = 0.3 * create_loss(pred_lane, label, 2, cfg.param['ignore_label'], cfg.USE_WEIGHT)
+            loss_cls = 0.5 * create_loss(pred_lane, label, 2, cfg.param['ignore_label'], cfg.USE_WEIGHT)
         else:
             # Get output from the output layer
             pred = net.layers['conv6_cls']
@@ -209,7 +209,7 @@ class TrainConfig(Config):
     WEIGHT_DECAY = 1e-7
     MOMENTUM = 0.9
     POWER = 0.9
-    TRAINING_STEPS = 60000 + 1
+    TRAINING_STEPS = 90000 + 1
     SAVE_PRED_EVERY = 100
     reuse = False
 
