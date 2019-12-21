@@ -7,11 +7,12 @@ from tqdm import trange
 
 from utils.config import Config
 from utils.image_label_lane_reader import ImageReader, read_labeled_image_list
-from model_swift import Swift_mobile, freetech_mobile_050, freetech_mobile_050_lane
+from model_swift import Swift_mobile, freetech_mobile_050, freetech_mobile_050_lane, freetech_mobile_025_lane
 from utils.visualize import decode_labels, decode_ids
 
 # mapping different model
-model_config = {'Swift_mobile':Swift_mobile, 'freetech_mobile_050':freetech_mobile_050, 'freetech_mobile_050_lane':freetech_mobile_050_lane}
+model_config = {'Swift_mobile':Swift_mobile, 'freetech_mobile_050':freetech_mobile_050, 'freetech_mobile_050_lane':freetech_mobile_050_lane,\
+    'freetech_mobile_025_lane':freetech_mobile_025_lane}
 
 def get_arguments():
     parser = argparse.ArgumentParser(description="Semantic Segmentation models Eval")
@@ -37,6 +38,7 @@ class EvalConfig(Config):
     #model_type = 'Swift18_light'
     model_type = 'Swift_mobile'
     model_type = 'freetech_mobile_050_lane'
+    model_type = 'freetech_mobile_025_lane'
 
     ckpt_step = 100
 

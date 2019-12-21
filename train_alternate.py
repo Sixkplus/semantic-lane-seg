@@ -17,7 +17,7 @@ from utils.image_reader import prepare_label
 from utils.image_reader import ImageReader as SegReader
 from utils.image_lane_reader import ImageReader as LaneReader
 
-from model_swift import Swift_mobile, freetech_mobile_050, freetech_mobile_050_lane
+from model_swift import Swift_mobile, freetech_mobile_050, freetech_mobile_050_lane, freetech_mobile_025_lane
 
 local_device_protos = device_lib.list_local_devices()
 
@@ -164,7 +164,8 @@ def create_losses(net, label, cfg, isLane = False):
     reduced_loss = loss_cls + tf.add_n(l2_losses)
     return loss_cls, reduced_loss
 
-Models = {'Swift_mobile':Swift_mobile, 'freetech_mobile_050':freetech_mobile_050, 'freetech_mobile_050_lane':freetech_mobile_050_lane}
+Models = {'Swift_mobile':Swift_mobile, 'freetech_mobile_050':freetech_mobile_050, 'freetech_mobile_050_lane':freetech_mobile_050_lane,\
+     'freetech_mobile_025_lane':freetech_mobile_025_lane}
 
 class TrainConfig(Config):
     def __init__(self, dataset, is_training,  filter_scale=1, use_weight=False, random_scale=None, random_mirror=None):
@@ -178,6 +179,7 @@ class TrainConfig(Config):
     model = 'Swift_mobile'
     model = 'freetech_mobile_050'
     model = 'freetech_mobile_050_lane'
+    model = 'freetech_mobile_025_lane'
     
     # Continue Training
     #model_weight = './snapshots/cityscapes/Swift18_light_BN_best.ckpt'
@@ -196,6 +198,7 @@ class TrainConfig(Config):
     pretrained_weight = './pretrained/resnet_v1_50.ckpt'
     pretrained_weight = './pretrained/mobilenet_v1_1.0_224.ckpt'
     pretrained_weight = './pretrained/mobilenet_v1_0.5_160.ckpt'
+    pretrained_weight = './pretrained/mobilenet_v1_0.25_128.ckpt'
     PRETRAINED = True
 
     # Directory to save the checkpoints
@@ -203,13 +206,13 @@ class TrainConfig(Config):
     
     # Set hyperparameters here, you can get much more setting in Config Class, see 'utils/config.py' for details.
     TRAINING_SIZE = [1024, 1024] 
-    BATCH_SIZE = 8
+    BATCH_SIZE = 4
     N_WORKERS = 2
     LEARNING_RATE = 1e-3
     WEIGHT_DECAY = 1e-7
     MOMENTUM = 0.9
     POWER = 0.9
-    TRAINING_STEPS = 90000 + 1
+    TRAINING_STEPS = 20000 + 1
     SAVE_PRED_EVERY = 100
     reuse = False
 

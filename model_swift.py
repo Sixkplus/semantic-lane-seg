@@ -1046,3 +1046,158 @@ class freetech_mobile_050_lane(Network):
 
         (self.feed('lane/up_2_bn')
              .conv(3, 3, 2, 1, 1, biased=False, relu=False, padding='SAME', name='lane/conv6_cls'))
+
+# mobile 025  & knowledge distillation
+class freetech_mobile_025_lane(freetech_mobile_050_lane):
+    def setup(self):
+        arg_scope = mobilenet_v1.mobilenet_v1_arg_scope(is_training=self.cfg.is_training)
+        with slim.arg_scope(arg_scope):
+            _, end_points = mobilenet_v1.mobilenet_v1_025(self.layers['data'], is_training=self.cfg.is_training, spatial_squeeze=False)
+
+        for key in end_points.keys():
+            if('Logits' not in key and 'predictions' not in key):
+                self.layers[key] = end_points[key]
+            
+        
+        (self.feed('Conv2d_13_pointwise')
+             .conv(1, 1, 128, 1, 1, biased=False, relu=False, padding='SAME', name='conv5_2_skip'))
+
+
+        shape = self.layers['conv5_2_skip'].get_shape().as_list()[1:3]
+        h, w = shape
+
+        (self.feed('conv5_2_skip')
+            .avg_pool(h, w, h, w, name='conv5_2_pool1')
+            .conv(1, 1, 128//4, 1, 1, biased=False, relu=False, name='conv5_2_pool1_conv')
+            .batch_normalization(relu=True, name='conv5_2_pool1_conv_bn')
+            .resize_bilinear(shape, name='conv5_2_pool1_interp'))
+
+        (self.feed('conv5_2_skip')
+            .avg_pool(h/2, w/2, h/2, w/2, name='conv5_2_pool2')
+            .conv(1, 1, 128//4, 1, 1, biased=False, relu=False, name='conv5_2_pool2_conv')
+            .batch_normalization(relu=True, name='conv5_2_pool2_conv_bn')
+            .resize_bilinear(shape, name='conv5_2_pool2_interp'))
+
+        (self.feed('conv5_2_skip')
+            .avg_pool(h/4, w/4, h/4, w/4, name='conv5_2_pool4')
+            .conv(1, 1, 128//4, 1, 1, biased=False, relu=False, name='conv5_2_pool4_conv')
+            .batch_normalization(relu=True, name='conv5_2_pool4_conv_bn')
+            .resize_bilinear(shape, name='conv5_2_pool4_interp'))
+
+        (self.feed('conv5_2_skip')
+            .avg_pool(h/8, w/8, h/8, w/8, name='conv5_2_pool8')
+            .conv(1, 1, 128//4, 1, 1, biased=False, relu=False, name='conv5_2_pool8_conv')
+            .batch_normalization(relu=True, name='conv5_2_pool8_conv_bn')
+            .resize_bilinear(shape, name='conv5_2_pool8_interp'))
+        
+
+        (self.feed('conv5_2_skip',
+                   'conv5_2_pool8_interp',
+                   'conv5_2_pool4_interp',
+                   'conv5_2_pool2_interp',
+                   'conv5_2_pool1_interp')
+             .concat(axis=-1, name='conv5_2_concat')
+             .conv(1, 1, 128, 1, 1, biased=False, relu=False, padding='SAME', name='conv5_3')
+             .batch_normalization(relu=True, name='conv5_3_bn'))
+
+        # ------------------------------- Segmentation Branch --------------------------------------- #
+        # UpSample 1
+        (self.feed('Conv2d_11_pointwise')
+             .conv(1, 1, 128, 1, 1, biased=False, relu=False, padding='SAME', name='conv4_2_skip_conv')
+             .batch_normalization(relu=True, name='conv4_2_skip_conv_bn'))
+        
+        (self.feed('conv5_3_bn',
+                   'conv4_2_skip_conv_bn')
+             .add(name='up_4_add')
+             .conv(3, 3, 64, 1, 1, biased=False, relu=False, padding='SAME', name='up_4')
+             .batch_normalization(relu=True, name='up_4_bn'))
+        
+
+        # UpSample 2
+        (self.feed('Conv2d_5_pointwise')
+             .conv(1, 1, 64, 1, 1, biased=False, relu=False, padding='SAME', name='conv3_2_skip_conv')
+             .batch_normalization(relu=True, name='conv3_2_skip_conv_bn'))
+
+        (self.feed('up_4_bn',
+                   'conv3_2_skip_conv_bn')
+             .add(name='up_3_add')
+             .conv(3, 3, 32, 1, 1, biased=False, relu=False, padding='SAME', name='up_3')
+             .batch_normalization(relu=True, name='up_3_bn'))
+        
+
+        # UpSample 3
+        (self.feed('Conv2d_3_pointwise')
+             .conv(1, 1, 32, 1, 1, biased=False, relu=False, padding='SAME', name='conv2_2_skip_conv')
+             .batch_normalization(relu=True, name='conv2_2_skip_conv_bn'))
+
+        (self.feed('up_3_bn',
+                   'conv2_2_skip_conv_bn')
+             .add(name='up_2_add')
+             .conv(3, 3, 32, 1, 1, biased=False, relu=False, padding='SAME', name='up_2')
+             .batch_normalization(relu=True, name='up_2_bn'))
+
+
+        # Results
+
+        (self.feed('up_4_bn')
+             .conv(3, 3, self.cfg.param['num_classes'], 1, 1, biased=False, relu=False, padding='SAME', name='conv4_cls'))
+
+        (self.feed('up_3_bn')
+             .conv(3, 3, self.cfg.param['num_classes'], 1, 1, biased=False, relu=False, padding='SAME', name='conv5_cls'))
+
+        (self.feed('up_2_bn')
+             .conv(3, 3, self.cfg.param['num_classes'], 1, 1, biased=False, relu=False, padding='SAME', name='conv6_cls'))
+
+        
+        # ------------------------------------- Lane Branch --------------------------------------- #
+        # UpSample 1
+        (self.feed('Conv2d_11_pointwise')
+             .conv(1, 1, 64, 1, 1, biased=False, relu=False, padding='SAME', name='lane/conv4_2_skip_conv')
+             .batch_normalization(relu=True, name='lane/conv4_2_skip_conv_bn'))
+        
+        # conv5_3  align
+        (self.feed('conv5_3_bn')
+             .conv(1, 1, 64, 1, 1, biased=False, relu=False, padding='SAME', name='lane/conv5_3')
+             .batch_normalization(relu=True, name='lane/conv5_3_bn'))
+
+        (self.feed('lane/conv5_3_bn',
+                   'lane/conv4_2_skip_conv_bn')
+             .add(name='lane/up_4_add')
+             .conv(3, 3, 32, 1, 1, biased=False, relu=False, padding='SAME', name='lane/up_4')
+             .batch_normalization(relu=True, name='lane/up_4_bn'))
+        
+
+        # UpSample 2
+        (self.feed('Conv2d_5_pointwise')
+             .conv(1, 1, 32, 1, 1, biased=False, relu=False, padding='SAME', name='lane/conv3_2_skip_conv')
+             .batch_normalization(relu=True, name='lane/conv3_2_skip_conv_bn'))
+
+        (self.feed('lane/up_4_bn',
+                   'lane/conv3_2_skip_conv_bn')
+             .add(name='lane/up_3_add')
+             .conv(3, 3, 16, 1, 1, biased=False, relu=False, padding='SAME', name='lane/up_3')
+             .batch_normalization(relu=True, name='lane/up_3_bn'))
+        
+
+        # UpSample 3
+        (self.feed('Conv2d_3_pointwise')
+             .conv(1, 1, 16, 1, 1, biased=False, relu=False, padding='SAME', name='lane/conv2_2_skip_conv')
+             .batch_normalization(relu=True, name='lane/conv2_2_skip_conv_bn'))
+
+        (self.feed('lane/up_3_bn',
+                   'lane/conv2_2_skip_conv_bn')
+             .add(name='lane/up_2_add')
+             .conv(3, 3, 16, 1, 1, biased=False, relu=False, padding='SAME', name='lane/up_2')
+             .batch_normalization(relu=True, name='lane/up_2_bn'))
+
+
+        # Results
+
+        (self.feed('lane/up_4_bn')
+             .conv(3, 3, 2, 1, 1, biased=False, relu=False, padding='SAME', name='lane/conv4_cls'))
+
+        (self.feed('lane/up_3_bn')
+             .conv(3, 3, 2, 1, 1, biased=False, relu=False, padding='SAME', name='lane/conv5_cls'))
+
+        (self.feed('lane/up_2_bn')
+             .conv(3, 3, 2, 1, 1, biased=False, relu=False, padding='SAME', name='lane/conv6_cls'))
