@@ -8,7 +8,7 @@ import glob, os, time, sys
 
 from tqdm import trange
 from utils.config import Config
-from model_swift import Swift_mobile, freetech_mobile_050, freetech_mobile_050_lane
+from model_swift import Swift_mobile, freetech_mobile_050, freetech_mobile_050_lane, freetech_mobile_025_lane
 
 
 # //////////////////////////////////////////////////////////////
@@ -16,7 +16,7 @@ from model_swift import Swift_mobile, freetech_mobile_050, freetech_mobile_050_l
 # //////////////////////////////////////////////////////////////
 
 # mapping different model
-model_config = {'freetech_mobile_050':freetech_mobile_050, 'freetech_mobile_050_lane':freetech_mobile_050_lane}
+model_config = {'freetech_mobile_050':freetech_mobile_050, 'freetech_mobile_050_lane':freetech_mobile_050_lane, 'freetech_mobile_025_lane_kd':freetech_mobile_025_lane}
 
 
 
@@ -33,6 +33,8 @@ class InferenceConfig(Config):
     model_type = 'Swift_mobile'
     model_type = 'freetech_mobile_050'
     model_type = 'freetech_mobile_050_lane'
+    model_type = 'freetech_mobile_025_lane'
+    model_type = 'freetech_mobile_025_lane_kd'
     ckpt_step = 600
 
     # Set pre-trained weights here (You can download weight from Google Drive) 
