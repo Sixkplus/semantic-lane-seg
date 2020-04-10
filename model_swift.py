@@ -832,6 +832,7 @@ class freetech_mobile_050_lane(Network):
             # Create placeholder and pre-process here.
             self.img_placeholder = tf.placeholder(dtype=tf.float32, shape=cfg.INFER_SIZE)
             self.logits_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, None, None, self.cfg.param['num_classes']])
+            self.logits_lane_placeholder = tf.placeholder(dtype=tf.float32, shape=[None, None, None, 2])
             self.images, self.o_shape, self.n_shape = _infer_preprocess(self.img_placeholder, cfg.IMG_MEAN)
             
             super().__init__(inputs={'data': self.images}, cfg=self.cfg)
@@ -843,6 +844,10 @@ class freetech_mobile_050_lane(Network):
             self.output_id_lane = self.get_output_id(is_lane=True)
 
             self.output_feature = self.layers['conv6_cls']
+            self.output_feature_lane = self.layers['lane/conv6_cls']
+
+            self.output_from_feature = self.get_output_node_from_feature()
+            self.output_from_feature_lane = self.get_output_node_from_feature(is_lane=True)
     
     def get_output_node(self, is_lane=False):
         if self.mode == 'inference':
@@ -866,6 +871,19 @@ class freetech_mobile_050_lane(Network):
             output = tf.argmax(logits_up, axis=3)
             output = tf.expand_dims(output, axis=3)
 
+        return output
+    
+    def get_output_node_from_feature(self, is_lane=False):
+        # Upscale the logits and decode prediction to get final result.
+        if is_lane:
+            logits_up = tf.image.resize_bilinear(self.logits_lane_placeholder, size=self.o_shape, align_corners=True)
+        else:
+            logits_up = tf.image.resize_bilinear(self.logits_placeholder, size=self.o_shape, align_corners=True)
+        output_classes = tf.argmax(logits_up, axis=3)
+        if is_lane:
+            output = decode_labels(output_classes, self.o_shape[0:2], 2)
+        else:
+            output = decode_labels(output_classes, self.o_shape[0:2], self.cfg.param['num_classes'])
         return output
     
     def get_output_id(self, is_lane=False):
@@ -894,6 +912,12 @@ class freetech_mobile_050_lane(Network):
     def predict_color_and_id_seg_lane(self, image):
         return self.sess.run([self.output, self.output_id, self.output_lane, self.output_id_lane], feed_dict={self.img_placeholder: image})
     
+    def predict_feature(self, image):
+        return self.sess.run([self.output_feature, self.output_feature_lane], feed_dict={self.img_placeholder: image})
+
+    def predict_color_from_feature(self, feature, feature_lane):
+        return self.sess.run([self.output_from_feature, self.output_from_feature_lane], feed_dict={self.logits_placeholder: feature, self.logits_lane_placeholder: feature_lane})
+
     def setup(self):
         arg_scope = mobilenet_v1.mobilenet_v1_arg_scope(is_training=self.cfg.is_training)
         with slim.arg_scope(arg_scope):
