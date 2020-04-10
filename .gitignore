@@ -9,4 +9,5 @@
 /Test*
 /useful_snapshots
 /video_test
-
+/*.avi
+/video_output
