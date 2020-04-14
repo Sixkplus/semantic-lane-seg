@@ -28,6 +28,9 @@ class InferenceConfig(Config):
     def __init__(self, dataset, is_training, filter_scale):
         Config.__init__(self, dataset, is_training, filter_scale)
     
+    # parameter of GOP, this parameter can be 12, 6, 4, 3, 2, 1
+    gop = 12
+    
     # You can choose different model here
     model_type = 'Swift_mobile'
     model_type = 'freetech_mobile_050_lane'
@@ -35,8 +38,6 @@ class InferenceConfig(Config):
     #model_type = 'freetech_mobile_025_lane'
     #model_type = 'freetech_mobile_025_lane_kd'
     ckpt_step = 600
-
-    #model_weight = './useful_checkpoints/model.ckpt-28200'
 
     #model_weight = './useful_checkpoints/' + model_type + '.ckpt-' + str(ckpt_step)
     model_weight = './snapshots/freetech/' + model_type + '_best.ckpt'
@@ -142,7 +143,6 @@ warp_feature = warp(feature_placeholder, flow_placeholder)
 warp_feature_lane = warp(feature_lane_placeholder, flow_placeholder)
 
 
-GOP_FRAMES_NUM = 12
 np.random.seed(5)
 
 tot = []
@@ -164,7 +164,8 @@ for VAL_FOLDER in val_folders:
     for ind in range(n):
         img = cv2.imread(PATH_IMG + '/frame' + str(ind) + '.png')
         # I-frame
-        if ind % 12 == 0:
+        # We can choose 12, 6, 4, 3, 2, 1 
+        if ind % cfg.gop == 0:
             st = time.time()
             feature, feature_lane = net.predict_feature(img)
             print( 'Frame id: ',ind, ", I-frame, processing time: ", time.time()-st)
@@ -204,10 +205,10 @@ for VAL_FOLDER in val_folders:
         
         
         color_and_id = net.predict_color_from_feature(feature, feature_lane)
-        result_color, result_id = color_and_id[0][0], color_and_id[1][0]
+        result_color, result_color_lane = color_and_id[0][0], color_and_id[1][0]
 
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        result_alpha = 0.5 * img + 0.5 * result_color
+        result_alpha = 0.4 * img + 0.3 * result_color + 0.4*result_color_lane
 
         if not os.path.exists('video_output'):
             os.makedirs('video_output')
